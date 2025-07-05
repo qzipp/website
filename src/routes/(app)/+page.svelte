@@ -19,7 +19,7 @@
   let z_index = $state(0);
   onMount(() => {
     Loaded.subscribe((data) => {
-      if(data.desktop && manager) manager.run(Fanart);
+      // if(data.desktop && manager) manager.run(Fanart);
     });
   })
 </script>	
