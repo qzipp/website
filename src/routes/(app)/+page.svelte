@@ -21,7 +21,7 @@
   onMount(() => {
     Loaded.subscribe((data) => {
       if(!ran_already && (data.desktop && manager)) {
-        manager.run(Welcome);
+        if(localStorage.getItem("welcome-1_2_3-alpha") !== "true") manager.run(Welcome);
         ran_already = true;
       }
     });
