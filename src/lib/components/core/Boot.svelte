@@ -104,6 +104,8 @@
     const boot_sfx = new Audio("/sfx/boot.flac");
     
     await BIOS.type("...", 100)
+    await BIOS.type("tap or press space to skip", 30)
+    await sleep(250)
 
     if(skip) {
       await BIOS.type("skipped!", 20)

@@ -54,7 +54,7 @@
       }}
       z_index={0}
       bind:this={proccess.window}>
-        <proccess.component bind:this={proccess.app} />
+        <proccess.component pid={proccess.pid} bind:this={proccess.app} />
       </Window>
     {:else} 
       <!-- we will not render this -->

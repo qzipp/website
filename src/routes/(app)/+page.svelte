@@ -10,14 +10,20 @@
 
   import InternetExplorer from "$applications/utilities/InternetExplorer/app.svelte";
   import Fanart from "$applications/Fanart/app.svelte";
+  import Welcome from "$applications/welcome/app.svelte";
 
   // svelte-ignore non_reactive_update
   let manager: WindowManager;
 
   let z_index = $state(0);
+
+  let ran_already = false;
   onMount(() => {
     Loaded.subscribe((data) => {
-      // if(data.desktop && manager) manager.run(Fanart);
+      if(!ran_already && (data.desktop && manager)) {
+        manager.run(Welcome);
+        ran_already = true;
+      }
     });
   })
 </script>	

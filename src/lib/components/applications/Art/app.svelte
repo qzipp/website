@@ -39,11 +39,11 @@
   <Button onclick={() => (art_selected = undefined)}>go back</Button>
   <div class="view-art">
     <img src={`/art/${art_selected.filename}`} alt="art">
-    <span class="author">{art_selected.date}{art_selected.info.length > 0 ? ", " : ""}{art_selected.info}</span>
+    <span>{art_selected.filename}</span>
   </div>
   {:else}
   <div class="fanart-body">    
-    <input class="search" type="text" bind:value={search} placeholder="search by my a">
+    <input class="search" type="text" bind:value={search} placeholder="search by filename">
     {#await art_fetch}
     loading...
     {:then data}
