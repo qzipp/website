@@ -1,4 +1,7 @@
-import SettingsStore from "$stores/Settings";
+import { type SettingsStorage } from "$stores/Settings";
 
-export const clock_format = SettingsStore("clock_format", "US");
-export const clock_show_seconds = SettingsStore("clock_show_seconds", "1");
+export const default_settings = {
+  clock_format_24h: false as boolean,
+  clock_show_seconds: true as boolean,
+  font: "windows" as "windows"|"monospace",
+} satisfies SettingsStorage;

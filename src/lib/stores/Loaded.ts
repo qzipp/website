@@ -2,10 +2,10 @@ import { writable } from "svelte/store";
 
 let Loaded = writable({
   clock: false,
-  settings: false,
-  intro: false,
   desktop: false,
   taskbar: false,
+  
+  bios: false,
   boot: false,
 });
 

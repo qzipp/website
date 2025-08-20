@@ -1,12 +1,10 @@
 <script lang="ts">
-  import { get } from "svelte/store";
+  import { get, writable } from "svelte/store";
   import { onMount, type Snippet } from "svelte";
   
   import { slide_no_resize } from "$transitions/slide_no_resize";
   import type { WindowActions } from "$types/WindowActions";
-  import { new_process } from "$utils/new_process.svelte";
-  import Processes from "$stores/Processes"
-  import { getContext } from "svelte";
+  import Button from "$components/inputs/Button.svelte";
 
   const props: {
     icon?: string,
@@ -21,8 +19,9 @@
 
     children?: Snippet,
 
-    // events
     actions?: WindowActions,
+
+    z_index?: number
   } = $props();
 
   // svelte-ignore non_reactive_update
@@ -30,29 +29,16 @@
   // svelte-ignore non_reactive_update
   let Titlebar: HTMLDivElement;
 
-  let process = new_process((pid) => ({
-    pid: pid,
-    icon: props.icon,
-    title: props.title,
-    killed: false,
-    window: {
-      actions: { minimize, maximize, close }
-    }
-  }));
-
-  process.subscribe((p) => {
-    if(p.killed) {
-      if(Window) Window.remove();
-    }
-  })
+  let to_resize = $state(false);
 
   let to_move = $state(false);
   let window_pos = $state({
-    top: 0,
-    left: 0,
+    x: 0,
+    y: 0,
   });
 
   let minimized = $state(false);
+
   let maximized = $state(false);
   let maximizing = $state(false);
   let window_size = $state({
@@ -60,7 +46,7 @@
     height: props.height ?? 40,
   });
 
-  let focus = $state(false);
+  let focus = $state(true);
 
   let mouse_click = $state({
     ended: false,
@@ -71,25 +57,14 @@
     origin_y: 0,
   })
 
-  function minimize() {
+  export function minimize() {
     minimized = !minimized;
   }
-  function maximize() {
+  export function maximize() {
     maximizing = true;
     maximized = !maximized;
     setTimeout(() => maximizing = false, 150);
   }
-  function close() {
-    $process.killed = true;
-    Processes.update((pc) => {
-      let id = pc.findIndex((p) => $process.pid === get(p).pid)
-      console.log("a", id);
-      if(id >= 0) pc.splice(id, 1)
-      return pc;
-    })
-    // awful.
-  }
-
 
   const reset = () => {
     mouse_click.origin_x = 0;
@@ -101,6 +76,15 @@
     
     return;
   }
+
+  const resize = (mouse_pos: { x: number, y: number }) => {
+    if(!Window) return;
+    if(maximized) return;
+    if(!to_resize) return; 
+    
+    window_size.height = Math.round((mouse_pos.y - window_pos.y));
+    window_size.width = Math.round((mouse_pos.x - window_pos.x));
+  };
 
   const move = (mouse_pos: { x: number, y: number }) => {
     if(!Window) return;
@@ -116,37 +100,39 @@
       return;
     }
 
-    window_pos.top = mouse_pos.y - mouse_click.offset_y;
-    window_pos.left = mouse_pos.x - mouse_click.offset_x;
+    window_pos.y = mouse_pos.y - mouse_click.offset_y;
+    window_pos.x = mouse_pos.x - mouse_click.offset_x;
   };
-
-  $effect(() => {
-    if(props.title || props.icon) {
-      if(process) process.update((pc) => {
-        return {
-          ...pc,
-          title: props.title, 
-          icon: props.icon, 
-        }
-      })
-    }
-  });
 
   onMount(() => {
     if(Window) {
+      const window_rect = Window.parentElement?.getBoundingClientRect();
+      if(window_rect) {
+        window_pos.x = Math.round((window_rect?.width / 2) - (window_size.width / 2));
+        window_pos.y = Math.round((window_rect?.height / 2) - (window_size.height / 2));
+      
+        // for actually being able to grab the damn window, if the screen too small for it
+        let offset_size_y = window_rect.height - window_size.height;
+        console.log(offset_size_y, window_pos.y, window_rect.height)
+        if(offset_size_y < 0) window_pos.y += Math.abs(offset_size_y);
+      }
 
-      const is_focused = (event: FocusEvent) => Window && Window.contains(event.target as Element) ? (focus = true) : (focus = false);
-      document.addEventListener("focusin", is_focused);
-      document.addEventListener("focusout", is_focused);
+      const in_window = (event: FocusEvent) => Window && Window.contains(event.target as Element) ? true : false;
+      document.addEventListener("focusin", (event) => (focus = in_window(event)));
+      document.addEventListener("focusout", (event) => (focus = in_window(event)));
 
       document.addEventListener("mouseup", (event) => {
         if(event.button !== 0) return;
         reset();
         to_move = false;
+        to_resize = false;
+        document.body.style.cursor = "auto";
       })
       document.addEventListener("touchend", () => {
         reset();
         to_move = false;
+        to_resize = false;
+        document.body.style.cursor = "auto";
       })
 
       document.addEventListener("mousemove", (event) => {
@@ -160,11 +146,15 @@
           mouse_click.once = true;
           mouse_click.origin_x = mouse_pos.x;
           mouse_click.origin_y = mouse_pos.y;
-          mouse_click.offset_x = mouse_pos.x - window_pos.left;
-          mouse_click.offset_y = mouse_pos.y - window_pos.top;
+          mouse_click.offset_x = mouse_pos.x - window_pos.x;
+          mouse_click.offset_y = mouse_pos.y - window_pos.y;
         }
 
-        move(mouse_pos);
+        if(to_move) {
+          move(mouse_pos);
+        } else if(to_resize) {
+          resize(mouse_pos);
+        }
       });
       document.addEventListener("touchmove", (event) => {
         const touch_pos = {
@@ -176,35 +166,44 @@
           mouse_click.once = true;
           mouse_click.origin_x = touch_pos.x;
           mouse_click.origin_y = touch_pos.y;
-          mouse_click.offset_x = touch_pos.x - window_pos.left;
-          mouse_click.offset_y = touch_pos.y - window_pos.top;
+          mouse_click.offset_x = touch_pos.x - window_pos.x;
+          mouse_click.offset_y = touch_pos.y - window_pos.y;
         }
 
-        move(touch_pos);
+        if(to_move) {
+          move(touch_pos);
+        } else if(to_resize) {
+          resize(touch_pos);
+        }
       });
     }
 
     
     return () => {
-      window_pos.left = 0;
-      window_pos.top = 0;
+      window_pos.x = 0;
+      window_pos.y = 0;
       reset();
-
-      close();
     };
   });
 </script>
 
-{#if !$process.killed && !minimized}
+{#if true}
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+<!-- svelte-ignore a11y_positive_tabindex -->
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <div transition:slide_no_resize bind:this={Window}
 style:height={maximized ? "100%" : `${window_size.height}px`}
 style:width={maximized ? "100%" : `${window_size.width}px`}
 
-style:top={maximized ? "0px" : `${window_pos.top}px`} 
-style:left={maximized ? "0px" : `${window_pos.left}px`} 
+style:top={maximized ? "0px" : `${window_pos.y}px`} 
+style:left={maximized ? "0px" : `${window_pos.x}px`} 
+
+style:z-index={props.z_index}
+
 class={[
   `window`, 
+  minimized ? "minimized" : "", 
+
   maximized ? "maximized" : "", 
   maximizing ? "maximizing": "", 
 
@@ -213,7 +212,7 @@ class={[
 
   props.scrollable ? `scroll` : ``, 
   props.resize ? `resize` : ``
-]} tabindex="0">
+]} tabindex="1">
   <div bind:this={Titlebar} role="toolbar" tabindex="0" 
   onmousedown={(event) => {
     if(event.target instanceof HTMLButtonElement) return;
@@ -227,49 +226,68 @@ class={[
     reset();
   }} 
   class="titlebar">
-    <img src={props.icon ? props.icon : "/icons/executable-1.png"} alt="icon" class="icon" />
+    <img src={props.icon ? props.icon : "/icons/executable-1.png"} alt="icon" class="icon" draggable="false" />
 
     <div class="title">{props.title}</div>
 
     <div class="actions">
-      <button aria-label="minimize" onclick={() => {
+      <Button aria-label="minimize" onclick={() => {
         if(props.actions && props.actions.minimize) if(!props.actions.minimize()) { return };
         minimize();
-      }}></button>
-      <button aria-label="maximize" onclick={() => {
+      }}></Button>
+      <Button aria-label="maximize" onclick={() => {
         if(props.actions && props.actions.maximize) if(!props.actions.maximize()) { return }; 
         maximize();
-      }}></button>
-      <button aria-label="close" onclick={() => {
+      }}></Button>
+      <Button aria-label="close" onclick={() => {
         if(props.actions && props.actions.close) if(!props.actions.close()) { return };
-        close();
-      }}></button>
+      }}></Button>
     </div>
   </div>
 
   <div class="body">{#if props.children}{@render props.children()}{/if}</div>
+  {#if props.resize}
+    <div class="resize-corner"
+    onmousedown={(event) => {
+      document.body.style.cursor = "se-resize";
+      to_resize = true;
+    }}
+    ontouchstart={(event) => {
+      document.body.style.cursor = "se-resize";
+      to_resize = true;
+    }}>
+      
+    </div>
+  {/if}
 </div>
 {/if}
 
 <style lang="scss">
   .window {
-    overflow: hidden;
-
+    @media (hover: none) {
+      min-height: 31px;
+      min-width: 189px;
+    }
+      
     &:focus {
       outline: none;
     }
     position: absolute;
 
-    padding: 2px;
-    border: 1px outset #5d5d5d;
+    padding: 4px;
+    box-shadow: inset -1px -1px #0a0a0a,inset 1px 1px #797979,inset -2px -2px #242424,inset 2px 2px #5d5d5d;
     box-sizing: border-box;
     background: #181818;
 
     &.maximizing {
       transition: 
         top 0.15s linear, left 0.15s linear, 
-        width 0.15s linear, height 0.15s linear, resize 0s linear;
+        width 0.15s linear, height 0.15s linear;
       transform-origin: center;
+    }
+
+    &.minimized {
+      display: none;
     }
 
     min-height: 28px;
@@ -300,10 +318,14 @@ class={[
 
       gap: 3px;
       
-      padding: 2px;
+      padding: 1px 2px;
 
       background: linear-gradient(270deg, #7b00ff 0%, #37007f 100%);
 
+      @media (hover: none) {
+        padding: 3px;
+        gap: 6px;
+      }
       & .icon {
         image-rendering: pixelated;
         width: 16px;
@@ -320,28 +342,32 @@ class={[
       & .actions {
         display: flex;
         flex-direction: row;
-        gap: 2px;
-
+        gap: 1px;
         margin-left: auto;
-        & button {
+
+        @media (hover: none) {
+          gap: 3spx;
+        }
+        & :global(button) {
           height: 14px;
           min-width: 16px;
 
           @media (hover: none) {
-            padding: 0 15px;
+            height: 18px;
+            padding: 0px 16px;
           }
         }
-        & [aria-label="minimize"] {
+        & :global([aria-label="minimize"]) {
           background-repeat: no-repeat;
           background-position: calc(50% - 1px) 9px;
           background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='6' height='2' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill='%23cacaca' d='M0 0h6v2H0z'/%3E%3C/svg%3E");
         }
-        & [aria-label="maximize"] {
+        & :global([aria-label="maximize"]) {
           background-repeat: no-repeat;
           background-position: center;
           background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='9' height='9' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M9 0H0v9h9V0zM8 2H1v6h7V2z' fill='%23cacaca'/%3E%3C/svg%3E");
         }
-        & [aria-label="close"] {
+        & :global([aria-label="close"]) {
           background-repeat: no-repeat;
           background-position: center;
           background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg width='8' height='7' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath fill-rule='evenodd' clip-rule='evenodd' d='M0 0h2v1h1v1h2V1h1V0h2v1H7v1H6v1H5v1h1v1h1v1h1v1H6V6H5V5H3v1H2v1H0V6h1V5h1V4h1V3H2V2H1V1H0V0z' fill='%23cacaca'/%3E%3C/svg%3E");
@@ -349,17 +375,40 @@ class={[
       }
     }
 
-    &.scroll .body {
-      overflow: auto;
-    }
     & .body {
+      --titlebar-offset-y: 4px;
+      @media (hover: none) {
+        --titlebar-offset-y: 9px;
+      }
       position: relative;
-      max-height: calc(100% - 20px - 5px);
+      max-height: calc(100% - 20px - var(--titlebar-offset-y));
       height: 100%;
+      
+      overflow: hidden;
+
       &:not(:empty) {
         margin-top: 1px;
         padding: 2px;
       }
+
+      user-select: text;
+    }
+    &.scroll .body {
+      overflow: auto;
+    }
+
+    & .resize-corner {
+      background: url("/qicons/resize-icon.png");
+      image-rendering: pixelated;
+
+      position: absolute;
+      height: 12px;
+      width: 12px;
+      
+      bottom: 0px;
+      right: 0px;
+
+      cursor: se-resize;
     }
   }
 </style>

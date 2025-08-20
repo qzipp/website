@@ -8,12 +8,14 @@ const config = {
 		adapter: adapter(),
 		alias: {
 			"$src/*": "./src/*",
-			"$components/*": "./src/lib/components/*",
 			"$transitions/*": "./src/lib/transitions/*",
-			"$executables/*": "./src/lib/components/executables/*",
-			"$stores/*": "./src/lib/stores/*",
 			"$types/*": "./src/lib/types/*",
 			"$utils/*": "./src/lib/utils/*",
+
+			"$components/*": "./src/lib/components/*",
+			"$std/*": "./src/lib/std/*",
+			"$stores/*": "./src/lib/stores/*",
+			"$applications/*": "./src/lib/components/applications/*",
 		}
 	},
 	extensions: ['.svelte', '.svx']

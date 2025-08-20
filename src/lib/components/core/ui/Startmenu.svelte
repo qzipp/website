@@ -1,12 +1,19 @@
 <script lang="ts">
   import Loaded from "$src/lib/stores/Loaded";
   import { slide_no_resize } from "$transitions/slide_no_resize";
-  import WindowManager from "$components/WindowManager.svelte";
+  import WindowManager from "$src/lib/components/core/WindowManager.svelte";
   
-  import Fanart from "$executables/fanart/index.svelte";
+  import Fanart from "$src/lib/components/applications/Fanart/app.svelte";
+  import Art from "$src/lib/components/applications/Art/app.svelte";
+  import ControlPanel from "$applications/utilities/ControlPanel/app.svelte";
+  import TaskManager from "$applications/utilities/TaskManager/app.svelte";
   import { sleep } from "$utils/sleep";
+    import { onMount } from "svelte";
 
   let visible = $state(false);
+
+  // svelte-ignore non_reactive_update
+  let start_menu: HTMLDivElement;
 
   export const close = () => visible = false;
   export const open = () => visible = true;
@@ -17,9 +24,9 @@
   } = $props();
 </script>
 
-{#if visible && $Loaded.taskbar}
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
-<div transition:slide_no_resize={{duration: 200, reverse: false, axis: "y"}} class="start-menu" tabindex="0">
+{#if visible && $Loaded.taskbar}
+<div bind:this={start_menu} transition:slide_no_resize={{duration: 200, reverse: false, axis: "y"}} class="start-menu" tabindex="0">
   <div class="os-brand">
     kittyOS
   </div>
@@ -60,9 +67,30 @@
     })}
     {@render menu_item({
       icon: "/icons/paint_old-0.png",
-      name: "art"
+      name: "art",
+
+      click: (_, close) => {
+        props.manager.run(Art)
+        close();
+      }
     })}
     <hr>
+    {@render menu_item({
+      icon: "/icons/computer_taskmgr-0.png",
+      name: "task manager",
+      click: (_, close) => {
+        props.manager.run(TaskManager);
+        close();
+      }
+    })}
+    {@render menu_item({
+      icon: "/icons/directory_control_panel-3.png",
+      name: "control panel",
+      click: (_, close) => {
+        props.manager.run(ControlPanel);
+        close();
+      }
+    })}
     {@render menu_item({
       icon: "/icons/application_hourglass-0.png",
       name: "run...",
@@ -113,9 +141,8 @@
     flex-direction: row;
 
     background: #1c1c1c;
-    border: 1px outset #5d5d5d;
-    padding: 2px;
-    //box-shadow: var(--default-box-shadow);
+    box-shadow: inset -1px -1px #0a0a0a,inset 1px 1px #797979,inset -2px -2px #242424,inset 2px 2px #5d5d5d;
+    padding: 2px;;
 
     & .os-brand {
       display: flex;

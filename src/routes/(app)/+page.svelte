@@ -1,17 +1,15 @@
 <script lang="ts">
-  import IEDetect from "$components/IEDetect.svelte"
-
   import Processes from "$stores/Processes";
   import Loaded from "$stores/Loaded"
   import version from "$lib/version";
   
   import { mount, onMount, unmount, type Component } from "svelte";
-  import Taskbar from "$components/Taskbar.svelte";
+  import Taskbar from "$components/core/ui/Taskbar.svelte";
 
-  import WindowManager from "$components/WindowManager.svelte";
+  import WindowManager from "$components/core/WindowManager.svelte";
 
-  import InternetExplorer from "$executables/InternetExplorer/index.svelte"
-  import Fanart from "$executables/fanart/index.svelte";
+  import InternetExplorer from "$applications/utilities/InternetExplorer/app.svelte";
+  import Fanart from "$applications/Fanart/app.svelte";
 
   // svelte-ignore non_reactive_update
   let manager: WindowManager;
@@ -23,8 +21,6 @@
     });
   })
 </script>	
-
-<IEDetect />
 
 <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
 <div class="desktop" tabindex="0">
@@ -44,9 +40,19 @@
     {@render desktop_file({
       icon: "/icons/computer_explorer_cool-5.png",
       name: "My Computer",
+      click: () => {
+        alert("not implemented, will be a file explorer")
+      }
     })}
     {@render desktop_file({
-      icon: "/icons/msie1-2.png",
+      icon: "/icons/directory_open_cabinet_fc-2.png",
+      name: "fanart",
+      click: () => {
+        manager.run(Fanart)
+      }
+    })}
+    {@render desktop_file({
+      icon: "/icons/msie2-1.png",
       name: "Internet Explorer",
       click: () => {
         manager.run(InternetExplorer)
@@ -70,6 +76,8 @@
     height: 100%;
     width: 100%;
 
+    overflow: hidden;
+
     & .files {
       z-index: 1;
 
@@ -82,7 +90,7 @@
 
       gap: 8px;
 
-      height: calc(100dvh - 28px);
+      height: 100%;
 
       position: relative;
 
