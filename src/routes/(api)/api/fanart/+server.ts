@@ -9,7 +9,12 @@ files.sort();
 export const GET: RequestHandler = async () => {
 	return json({
     files: files.map((filename) => {
-      const [author, unique_garbage] = filename.split(".")[0].split("-");
+      const [author, unique_garbage] = (() => { 
+        const arr = filename.split("."); 
+        arr.pop();
+        return arr.join("."); // fixes a bug with author having a dot in the name
+        // breaks the intended split 
+      })().split("-");
 
       return {
         filename: filename,
