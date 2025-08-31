@@ -25,6 +25,7 @@ url not found!
   }
   
   :global(body) {
+    background: #000;
     font-family: "Pixelated MS Sans Serif";
     color: #fff;
     font-size: 11px;
