@@ -1,14 +1,16 @@
 <script lang="ts">
-  import Loaded from "$src/lib/stores/Loaded";
+  import Loaded from "$stores/Loaded";
+  import Processes from "$stores/Processes";
+
   import { slide_no_resize } from "$transitions/slide_no_resize";
-  import WindowManager from "$src/lib/components/core/WindowManager.svelte";
+  import { sleep } from "$utils/sleep";
+
+  import WindowManager from "$components/core/WindowManager.svelte";
   
-  import Fanart from "$src/lib/components/applications/Fanart/app.svelte";
-  import Art from "$src/lib/components/applications/Art/app.svelte";
+  import Fanart from "$components/applications/Fanart/app.svelte";
+  import Art from "$components/applications/Art/app.svelte";
   import ControlPanel from "$applications/utilities/ControlPanel/app.svelte";
   import TaskManager from "$applications/utilities/TaskManager/app.svelte";
-  import { sleep } from "$utils/sleep";
-    import { onMount } from "svelte";
 
   let visible = $state(false);
 
@@ -109,7 +111,7 @@
         $Loaded.desktop = false;
         $Loaded.taskbar = false;
 
-        props.manager.kill_all();
+        Processes.kill_all();
         audio.play();
 
         await sleep(2500);
